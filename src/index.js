@@ -10,7 +10,7 @@ const customers = [];
 //Middleware. Validação de Conta basicamente 
 function verifyIfExistsAccountCpf(request, response, next){
     const { cpf } = request.headers;
-
+    console.log(request);
     const customer = customers.find((customer) => customer.cpf === (cpf));
 
     if(!customer) {
@@ -22,6 +22,7 @@ function verifyIfExistsAccountCpf(request, response, next){
     return next();
 }
 
+//Função para verificar o saldo da conta
 function getBalance(statement){
    const balance = statement.reduce((acc, operation)=>{
         if(operation.type === 'credit'){
@@ -34,6 +35,7 @@ function getBalance(statement){
     return balance;
 }
 
+//Cadastro de conta
 app.post("/account", (request, response) => {
     const { cpf, name } = request.body;
 
@@ -54,12 +56,14 @@ app.post("/account", (request, response) => {
     return response.status(201).send();
 });
 
+//Listando Extrato
 app.get("/statement", verifyIfExistsAccountCpf, (request, response) => {
     const { customer } = request;
 
     return response.json(customer.statement);
 });
 
+//Criando deposito
 app.post("/deposit", verifyIfExistsAccountCpf, (request, response) => {
     const {description, amount} = request.body;
 
@@ -77,6 +81,7 @@ app.post("/deposit", verifyIfExistsAccountCpf, (request, response) => {
     return response.status(201).send();
 });
 
+//Criando Saque
 app.post("/withdraw", verifyIfExistsAccountCpf, (request, response) => {
     const { amount } = request.body;
     const { customer } = request;
@@ -96,6 +101,57 @@ app.post("/withdraw", verifyIfExistsAccountCpf, (request, response) => {
     customer.statement.push(statementOperation);
 
     return response.status(201).send();
+});
+
+//Listando Extrato Bancário por Data
+app.get("/statement/date", verifyIfExistsAccountCpf, (request, response) => {
+    const { customer } = request;
+    const { date } = request.query;
+
+    const dateFormat = new Date(date + " 00:00");
+
+    const statement = customer.statement.filter(
+        (statement) => statement.created_at.toDateString() === 
+        new Date(dateFormat).toDateString()
+    );
+
+    return response.json(customer.statement);
+});
+
+//Atualizando os dados do cliente
+app.put("/account", verifyIfExistsAccountCpf, (request, response) =>{
+    const { name } = request.body;
+    const { customer } = request;
+
+    customer.name = name;
+ 
+    return response.status(201).send();
+});
+
+//Pegar dados da conta
+app.get("/account", verifyIfExistsAccountCpf, (request,response)=> {
+    const { customer } = request;
+
+    return response.json(customer);
+});
+
+//Deletando a conta
+app.delete("/account", verifyIfExistsAccountCpf, (request,response)=>{
+    const { customer } = request;
+
+    //splice
+    customers.splice(customer, 1);
+
+    return response.status(200).json(customers);
+});
+
+//Pegando o saldo da conta
+app.get("/balance", verifyIfExistsAccountCpf, (request,response) =>{
+    const { customer } = request;
+
+    const balance = getBalance(customer.statement);
+
+    return response.json(balance);
 });
 //local host (6767)
 app.listen(6767);
